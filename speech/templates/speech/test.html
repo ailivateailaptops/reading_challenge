@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pronunciation Test</title>
+</head>
+<body>
+    <h1>Pronunciation Test</h1>
+    <p id="sentence">{{ sentence }}</p>
+
+    <button id="start-recording">🎤 Start Recording</button>
+    <p id="result"></p>
+
+    <script>
+        document.getElementById("start-recording").addEventListener("click", () => {
+            let recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.lang = "en-US";
+
+            recognition.onstart = () => {
+                document.getElementById("result").innerText = "Listening...";
+            };
+
+            recognition.onspeechend = () => {
+                recognition.stop();
+                document.getElementById("result").innerText = "Processing...";
+            };
+
+            recognition.onresult = (event) => {
+                let spokenText = event.results[0][0].transcript;
+                document.getElementById("result").innerText = "You said: " + spokenText;
+
+                // Send to Django for evaluation using GET method
+                fetch(`/evaluate/?text=${encodeURIComponent(spokenText)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message) {
+                        document.getElementById("result").innerText +=
+                            `\nFluency: ${data.fluency}%\nGrammar: ${data.grammar}%\nVocabulary: ${data.vocabulary}%\nPronunciation: ${data.pronunciation}%\nInteraction: ${data.interaction}%\nMessage: ${data.message}`;
+                    } else {
+                        document.getElementById("result").innerText += "\nError: " + data.error;
+                    }
+                })
+                .catch(error => {
+                    document.getElementById("result").innerText += "\nError: Unable to reach server.";
+                    console.error("Fetch error:", error);
+                });
+            };
+
+            recognition.start();
+        });
+    </script>
+</body>
+</html>
